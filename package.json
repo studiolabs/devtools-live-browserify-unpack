@@ -1,0 +1,43 @@
+{
+  "name": "browserify-unpack",
+  "version": "0.1.0",
+  "description": "Bowserify unpack cut a browserify bundle in multiple files",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/StudioLabs/browserify-unpack"
+  },
+  "author": {
+    "name": "StudioLabs"
+  },
+  "main": "browserify-unpack.js",
+  "directories": {
+    "bin": "./bin"
+  },
+  "keywords": [
+    "browserify",
+    "unpack"
+  ],
+  "dependencies": {
+    "glob": "^5.0.5",
+    "lodash": "^3.8.0",
+    "yargs": "^3.8.0"
+  },
+  "devDependencies": {
+    "assert": "^1.3.0",
+    "mocha": "^2.1.0"
+  },
+  "bin": {
+    "browserifyunpack": "bin/browserifyunpack"
+  },
+  "bugs": {
+    "url": "https://github.com/StudioLabs/browserify-unpack/issues"
+  },
+  "homepage": "https://github.com/StudioLabs/browserify-unpack",
+  "maintainers": [
+    {
+      "name": "Steed Monteiro",
+      "email": "steed.monteiro@gmail.com"
+    }
+  ]
+}
