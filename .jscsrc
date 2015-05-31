@@ -1,0 +1,8 @@
+{
+"preset": "airbnb",
+//"preset": "google",
+"requireCamelCaseOrUpperCaseIdentifiers": "ignoreProperties",
+"validateLineBreaks": "LF",
+"validateIndentation": 2,
+"excludeFiles" : ["node_modules/**"]
+}
