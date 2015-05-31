@@ -1,16 +1,15 @@
 'use strict';
 
 var path = require('path');
-var _ = require('lodash');
-var glob = require('glob');
+var fs = require('fs');
+var combineSourceMap = require('combine-source-map');
+var mkdirp = require('mkdirp');
 
 function BrowserifyUnpack(options) {
 
   this.filepath = path.resolve(options.src);
 
   if (fs.lstatSync(this.filepath).isFile()) {
-
-    options = processOptions(options);
 
     this.dest = options.dest || false ;
     this.dir = path.resolve(path.dirname(this.filepath));
@@ -27,17 +26,15 @@ BrowserifyUnpack.prototype.unpackTo = function(options) {
   var toPath = options.dest;
   var urlRoot = options.urlRoot;
 
-  var SassMap = require('sass-map');
 
-  this.src = fs.readFileSync(srcFilePath, 'utf8');
-
-  var unpack = require('browser-unpack')
+  this.src = fs.readFileSync(this.filepath, 'utf8');
+  var unpack = require('browser-unpack');
 
   var files = unpack(this.src);
 
   files.forEach(function(file) {
-    this.src  = this.src .split('["' + file.id + '"][0].apply(exports,arguments)').join(';' + file.source);
-  });
+    this.src  = this.src.split('["' + file.id + '"][0].apply(exports,arguments)').join(';' + file.source);
+  }.bind(this));
 
   files = unpack(this.src);
 
@@ -49,8 +46,6 @@ BrowserifyUnpack.prototype.unpackTo = function(options) {
 
 BrowserifyUnpack.prototype.generateFiles = function(files, toPath, urlRoot) {
 
-  var combineSourceMap = require('combine-source-map');
-  var mkdirp = require('mkdirp');
 
   mkdirp.sync(toPath);
 
@@ -64,8 +59,8 @@ BrowserifyUnpack.prototype.generateFiles = function(files, toPath, urlRoot) {
     mkdirp.sync(toPath + baseUrl);
 
     var fileRealName =  file.id.replace(path.resolve('./') + '/', '')
-                          .replace('/', '-')
-                          .replace(path.extname(file.path), '');
+                          .replace(/\//g, '-')
+                          .replace(path.extname(file.id), '');
 
     var devFileUrl = urlRoot + baseUrl + fileRealName + extension;
     var devFilePath = toPath + baseUrl + fileRealName + extension;
@@ -90,14 +85,17 @@ BrowserifyUnpack.prototype.generateFiles = function(files, toPath, urlRoot) {
     map.push({
         src: devFileUrl,
         index: file.id,
-        line: 'var replace_' + i + ' = function(require,module,exports){',
+        line: 'var replace_' + indexFile + ' = function(require,module,exports){',
       });
 
     indexFile++;
-  });
+  }.bind(this));
 
   fs.writeFileSync(toPath + '/loader.js', this.src);
 
   return map;
 
 };
+
+
+module.exports =  BrowserifyUnpack;
