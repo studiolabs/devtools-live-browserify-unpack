@@ -67,7 +67,7 @@ BrowserifyUnpack.prototype.generateFiles = function(files, toPath, urlRoot) {
 
     var sourcemap = combineSourceMap.create();
     sourcemap.addFile({
-        sourceFile: devFileUrl,
+        sourceFile: urlRoot+file.id.replace(path.resolve('./'), ''),
         source: file.source
       }, {
         line: 1
@@ -77,7 +77,7 @@ BrowserifyUnpack.prototype.generateFiles = function(files, toPath, urlRoot) {
     var inline = new Buffer('\n' + comment + '\n');
 
     fs.writeFileSync(devFilePath, 'var replace_' + indexFile + ' = function(require,module,exports){' +
-      '\n ' + file.source + ' \n' +
+      '\n' + file.source + '\n' +
       '}' + inline);
 
     this.src = this.src.replace(file.source, 'return replace_' + indexFile + '(require,module,exports);');
