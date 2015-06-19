@@ -24,7 +24,6 @@ function BrowserifyUnpack(options) {
 BrowserifyUnpack.prototype.unpackTo = function(options) {
 
   var toPath = options.dest;
-  var urlRoot = options.urlRoot;
 
 
   this.src = fs.readFileSync(this.filepath, 'utf8');
@@ -40,11 +39,11 @@ BrowserifyUnpack.prototype.unpackTo = function(options) {
 
   this.dir = path.resolve(toPath);
 
-  return this.generateFiles(files, this.dir, urlRoot);
+  return this.generateFiles(files, this.dir);
 
 };
 
-BrowserifyUnpack.prototype.generateFiles = function(files, toPath, urlRoot) {
+BrowserifyUnpack.prototype.generateFiles = function(files, toPath) {
 
 
   mkdirp.sync(toPath);
@@ -55,19 +54,19 @@ BrowserifyUnpack.prototype.generateFiles = function(files, toPath, urlRoot) {
   files.forEach(function(file) {
 
     var extension = path.extname(file.id);
-    var baseUrl = '/dev/' + extension.substr(1) + '/';
-    mkdirp.sync(toPath + baseUrl);
+    var baseUrl = 'dev/' + extension.substr(1) + '/';
+    mkdirp.sync(toPath +'/'+ baseUrl);
 
     var fileRealName =  file.id.replace(path.resolve('./') + '/', '')
                           .replace(/\//g, '-')
                           .replace(path.extname(file.id), '');
 
-    var devFileUrl = urlRoot + baseUrl + fileRealName + extension;
-    var devFilePath = toPath + baseUrl + fileRealName + extension;
+    var devFileUrl =  baseUrl + fileRealName + extension;
+    var devFilePath = toPath +'/'+ baseUrl + fileRealName + extension;
 
     var sourcemap = combineSourceMap.create();
     sourcemap.addFile({
-        sourceFile: urlRoot+file.id.replace(path.resolve('./'), ''),
+        sourceFile: file.id.replace(path.resolve('./'), ''),
         source: file.source
       }, {
         line: 1
