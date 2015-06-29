@@ -67,7 +67,7 @@ BrowserifyUnpack.prototype.generateFiles = function(files, toPath) {
     var sourcemap = combineSourceMap.create();
     sourcemap.addFile({
         sourceFile: file.id.replace(path.resolve('./'), ''),
-        source: file.source
+        source: fs.readFileSync(file.id).toString()
       }, {
         line: 1
       });
