@@ -64,7 +64,7 @@ BrowserifyUnpack.prototype.generateFiles = function(files, toPath) {
     var devFileUrl =  baseUrl + fileRealName + extension;
     var devFilePath = toPath +'/'+ baseUrl + fileRealName + extension;
 
-    if(fs.exists(file.id)){
+    if(fs.existsSync(file.id)){
       var src = fs.readFileSync(file.id).toString();
     }else{
       var src = file.source;
