@@ -64,13 +64,19 @@ BrowserifyUnpack.prototype.generateFiles = function(files, toPath) {
     var devFileUrl =  baseUrl + fileRealName + extension;
     var devFilePath = toPath +'/'+ baseUrl + fileRealName + extension;
 
+    if(fs.exists(file.id)){
+      var src = fs.readFileSync(file.id).toString();
+    }else{
+      var src = file.source;
+    }
+
     var sourcemap = combineSourceMap.create();
     sourcemap.addFile({
-        sourceFile: file.id.replace(path.resolve('./'), ''),
-        source: fs.readFileSync(file.id).toString()
-      }, {
-        line: 1
-      });
+      sourceFile: file.id.replace(path.resolve('./'), ''),
+      source:src
+    }, {
+      line: 1
+    });
 
     var comment = sourcemap.comment();
     var inline = new Buffer('\n' + comment + '\n');
