@@ -1,8 +1,7 @@
 {
-"preset": "airbnb",
-//"preset": "google",
-"requireCamelCaseOrUpperCaseIdentifiers": "ignoreProperties",
-"validateLineBreaks": "LF",
-"validateIndentation": 2,
-"excludeFiles" : ["node_modules/**"]
+	"preset": "airbnb",
+	"requireCamelCaseOrUpperCaseIdentifiers": "ignoreProperties",
+	"validateIndentation": "\t",
+	"esnext": true,
+	"excludeFiles": ["node_modules/**" ,".git*"]
 }
