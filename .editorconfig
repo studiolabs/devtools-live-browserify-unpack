@@ -10,12 +10,4 @@ indent_style = tab
 charset = utf-8
 insert_final_newline = true
 trim_trailing_whitespace = true
-
-# Some cucumber tests use space end line
-[{features/common/support/variables.rb,features/themes/mstudio/editText.feature}]
-trim_trailing_whitespace = false
-
-# Matches the exact files either package.json or .travis.yml
-[{package.json,.travis.yml}]
-indent_style = space
-indent_size = 2
+indent_size = 4

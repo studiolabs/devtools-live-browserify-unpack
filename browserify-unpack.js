@@ -50,6 +50,7 @@ BrowserifyUnpack.prototype.unpackTo = function(options) {
 	if(this.verbose){
 		this.bar.tick(30);
 	}
+
   files.forEach(function(file,index) {
     this.src  = this.src.split('["' + file.id + '"][0].apply(exports,arguments)').join(';' + file.source);
   }.bind(this));
