@@ -159,7 +159,7 @@ BrowserifyUnpack.prototype.start = function(src, fileName) {
 	for( var id in  maps ){
 
 		var item = maps[id].row;
-		if(typeof id == "string"){
+		if(typeof id == "string" && fs.existsSync(id)){
 			item.name = this.clearName(id);
 		}else{
 			item.name = this.getItemUrl(_.keys(file.names), file);
