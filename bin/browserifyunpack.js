@@ -5,7 +5,7 @@ var yargs = require('yargs')
     .example('$0 -f foo.js', 'Cut a browserify bundle in multiple files')
 		.option('o', {
 			alias: 'output',
-			describe: 'Path to save the output ( map.json + files)'
+			describe: 'Path to save the output ( map.json + files )'
 		})
 		.option('f', {
 			alias: 'file',

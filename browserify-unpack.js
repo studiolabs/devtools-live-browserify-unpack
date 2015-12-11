@@ -276,7 +276,7 @@ BrowserifyUnpack.prototype.generateFiles = function(files, toPath) {
 
 	if (this.bMap) {
 
-	fs.writeFileSync(toPath+'/'+this.name +'/map.json', JSON.stringify(map));
+	fs.writeFileSync(toPath+'/'+this.name +'/browserify.map.json', JSON.stringify(map));
 
 		if (this.bVerbose) {
 			console.log('Map generated');
