@@ -22,10 +22,10 @@ var paths = require('./paths');
 var BrowserifyUnpack = require('browserify-unpack');
 
 var Package = new BrowserifyUnpack({
-    src: paths.build.dest + '/app.js',
-    destination: paths.build.dest,
-    map : true,
-    sourcemap:true
+ 		file: paths.build.dest + '/app.js',
+        output: paths.build.dest,
+        map : true,
+        sourcemap:true
 });
 
 var map = Package.unpack();

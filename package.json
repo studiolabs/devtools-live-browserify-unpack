@@ -1,6 +1,6 @@
 {
   "name": "browserify-unpack",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Browserify unpack cut a browserify bundle in multiple files",
   "license": "MIT",
   "repository": {
@@ -25,7 +25,6 @@
     "glob": "^5.0.5",
     "lodash": "^3.10.1",
     "mkdirp": "^0.5.1",
-    "progress": "^1.1.8",
     "yargs": "^3.30.0"
   },
   "devDependencies": {

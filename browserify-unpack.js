@@ -42,6 +42,7 @@ BrowserifyUnpack.prototype.clearName = function(name) {
 BrowserifyUnpack.prototype.getItemUrl = function(names) {
 
 	var url = "";
+
 	names.map(function(name) {
 
 		var newName = this.clearName(name);
@@ -141,6 +142,8 @@ BrowserifyUnpack.prototype.start = function(src, fileName) {
 
 		if (maps[row.id] == undefined) maps[row.id] = { names: [] };
 
+
+
 		maps[row.id].row = row;
 		maps[row.id].id = row.id;
 
@@ -151,18 +154,20 @@ BrowserifyUnpack.prototype.start = function(src, fileName) {
 
 		return row;
 
-		this.tick();
-
 	}.bind(this));
 
-	var index = maps.map(function(file) {
-		var item = file.row;
-		item.name = this.getItemUrl(_.keys(file.names), file);
-		return item;
+	for( var id in  maps ){
 
-		this.tick();
+		var item = maps[id].row;
+		if(typeof id == "string"){
+			item.name = this.clearName(id);
+		}else{
+			item.name = this.getItemUrl(_.keys(file.names), file);
+		}
 
-	}.bind(this));
+		index.push(item);
+
+	};
 
 	return index;
 
@@ -206,7 +211,7 @@ BrowserifyUnpack.prototype.unpack = function() {
 
 };
 
-BrowserifyUnpack.prototype.generateFiles = function(files, toPath, tickStart) {
+BrowserifyUnpack.prototype.generateFiles = function(files, toPath) {
 
 	mkdirp.sync(toPath);
 
@@ -265,9 +270,12 @@ BrowserifyUnpack.prototype.generateFiles = function(files, toPath, tickStart) {
 
 	}.bind(this));
 
+
+
 	fs.writeFileSync(toPath + '/loader.js', this.src);
 
 	if (this.bMap) {
+
 	fs.writeFileSync(toPath+'/'+this.name +'/map.json', JSON.stringify(map));
 
 		if (this.bVerbose) {
