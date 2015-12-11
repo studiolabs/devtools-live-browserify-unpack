@@ -3,9 +3,8 @@
 var yargs = require('yargs')
 		.usage('Usage: $0 -f <file> [options]')
     .example('$0 -f foo.js', 'Cut a browserify bundle in multiple files')
-		.option('d', {
-			alias: 'destination',
-			default: process.cwd(),
+		.option('o', {
+			alias: 'output',
 			describe: 'Path to save the output ( map.json + files)'
 		})
 		.option('f', {
@@ -15,13 +14,28 @@ var yargs = require('yargs')
 		})
 		.option('n', {
 			alias: 'name',
-			default : 'dev',
 			describe: 'Output directory name'
+		})
+		.option('d', {
+			alias: 'directory',
+			describe: 'Source files directory'
+		})
+		.option('s', {
+			alias: 'sourcemap',
+			default: false,
+			describe: 'Add sourcemap to output files',
+			type: 'bool'
+		})
+		.option('m', {
+			alias: 'map',
+			default: false,
+			describe: 'Generate a map of the generated files',
+			type: 'bool'
 		})
 		.option('v', {
 			alias: 'verbose',
 			default: false,
-			describe: 'Debug',
+			describe: 'Show logs',
 			type: 'bool'
 		})
 		.version(function() {
@@ -40,23 +54,11 @@ try {
 	var path = require('path');
 	var BrowserifyUnpack = require('../browserify-unpack.js');
 
-	var file = path.resolve(argv.file);
-	var destination = path.resolve(argv.destination);
-	var name = argv.name;
 
-	var Package = new BrowserifyUnpack({
-		src: file,
-		name : name,
-		verbose: argv.verbose
-	});
+	var Package = new BrowserifyUnpack(argv);
 
-	var map = Package.unpackTo({ dest: destination });
+	Package.unpack();
 
-	fs.writeFileSync(path.resolve(destination) + '/'+name+'/map.json', JSON.stringify(map));
-
-	if (argv.verbose) {
-		console.log('map saved ( '+ path.resolve(destination) + '/'+name+'/map.json )');
-	}
 
 } catch (e) {
 

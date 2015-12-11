@@ -22,14 +22,14 @@ var paths = require('./paths');
 var BrowserifyUnpack = require('browserify-unpack');
 
 var Package = new BrowserifyUnpack({
-    src: paths.build.dest + '/app.js'
+    src: paths.build.dest + '/app.js',
+    destination: paths.build.dest,
+    map : true,
+    sourcemap:true
 });
 
-var map = Package.unpackTo({
-    dest: paths.build.dest
-});
+var map = Package.unpack();
 
-fs.writeFileSync(path.resolve(paths.build.dir) + '/src.json', JSON.stringify(map));
 ```
 Usage as a command line tool:
 
@@ -40,13 +40,15 @@ $ browserifyunpack -h
 Usage: browserifyunpack -f <file> [options]
 
 Options:
-  -d, --destination  Path to save the output ( map.json + files)
-          [défaut: "/Volumes/WORKSPACE/Dropbox/www/dev/project/photobox/studio"]
-  -f, --file         File to unpack                                     [requis]
-  -n, --name         Output directory name                       [défaut: "dev"]
-  -v, --verbose      Debug                                       [défaut: false]
-  --version          Affiche le numéro de version                      [booléen]
-  -h, --help         Affiche de l'aide                                 [booléen]
+  -o, --output     Path to save the output ( map.json + files)
+  -f, --file       File to unpack                                       [requis]
+  -n, --name       Output directory name
+  -d, --directory  Source files directory
+  -s, --sourcemap  add sourcemap to output files                 [défaut: false]
+  -m, --map        Generate a map of the generated files         [défaut: false]
+  -v, --verbose    Show logs                                     [défaut: false]
+  --version        Affiche le numéro de version                        [booléen]
+  -h, --help       Affiche de l'aide                                   [booléen]
 
 Exemples:
   browserifyunpack -f foo.js  Cut a browserify bundle in multiple files

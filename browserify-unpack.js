@@ -5,138 +5,282 @@ var fs = require('fs');
 var combineSourceMap = require('combine-source-map');
 var mkdirp = require('mkdirp');
 
+var parse = require('esprima-fb').parse;
+
+var _ = require('lodash');
+
+
+
 function BrowserifyUnpack(options) {
 
-  this.filepath = path.resolve(options.src);
+	this.filepath = path.resolve(options.file);
 
-  if (fs.lstatSync(this.filepath).isFile()) {
+	fs.accessSync(this.filepath);
 
-    this.dest = options.dest || false ;
-    this.name = options.name || 'dev' ;
-    this.verbose = options.verbose || false ;
-    this.dir = path.resolve(path.dirname(this.filepath));
-    this.loadPaths = options.loadPaths || [];
-    this.extensions = options.extensions || [];
-    this.index = [];
-    this.link = [];
-    this.bar = false;
-  }
+	if (fs.lstatSync(this.filepath).isFile()) {
+		this.name = options.name || path.parse(this.filepath).name ;
+		this.bVerbose = options.verbose || false ;
+		this.bMap = options.map || false ;
+		this.bSourceMap = options.sourcemap || false ;
+		this.sourceDir = path.resolve( options.directory || './') + '/';
+		this.output = path.resolve( options.output || path.dirname(this.filepath));
+		this.index = [];
+		this.link = [];
+	}
 };
 
-BrowserifyUnpack.prototype.unpackTo = function(options) {
 
-  var toPath = options.dest;
+BrowserifyUnpack.prototype.clearName = function(name) {
+	name = name.replace(this.sourceDir, '');
+	var start = name.lastIndexOf('./');
+	if (start == -1) start = 0;
+	if (name[start] == "/") start++;
+	if (name[start + 1] == "/") start += 2;
+	return name.substr(start);
+}
 
-  this.src = fs.readFileSync(this.filepath, 'utf8');
-  var unpack = require('browser-unpack');
+BrowserifyUnpack.prototype.getItemUrl = function(names) {
 
-  if(this.verbose){
-		var ProgressBar = require('progress');
-		var barOpts = {
-	   width: 30,
-	   total: 100,
-	   clear: true
-	 };
+	var url = "";
+	names.map(function(name) {
 
-	 this.bar = new ProgressBar('Unpacking... [:bar] :percent', barOpts);
+		var newName = this.clearName(name);
+		if (newName.length > url.length) {
+			url = newName;
+		};
+		return newName;
+	}.bind(this));
+
+	if (path.extname(url) == '') {
+		url += '.js';
 	}
 
-	if(this.verbose){
-		this.bar.tick(1);
+	return url;
+};
+
+
+BrowserifyUnpack.prototype.start = function(src, fileName) {
+	// If src is a Buffer, esprima will just stringify it, so we beat them to
+	// the punch. This avoids the problem where we're using esprima's range
+	// indexes -- which are meant for a UTF-16 string -- in a buffer that
+	// contains UTF-8 encoded text.
+	if (typeof src !== 'string') {
+		src = String(src);
 	}
 
-  var files = unpack(this.src);
+	var ast = parse(src, { range: true });
 
-	if(this.verbose){
-		this.bar.tick(30);
+	ast.body = ast.body.filter(function(node) {
+		return node.type !== 'EmptyStatement';
+	});
+
+	if (ast.body.length !== 1) return;
+	if (ast.body[0].type !== 'ExpressionStatement') return;
+	if (ast.body[0].expression.type === 'UnaryExpression') {
+		var body = ast.body[0].expression.argument;
+	} else if (ast.body[0].expression.type === 'AssignmentExpression') {
+		var body = ast.body[0].expression.right;
+	} else {
+		var body = ast.body[0].expression;
 	}
 
-  files.forEach(function(file,index) {
-    this.src  = this.src.split('["' + file.id + '"][0].apply(exports,arguments)').join(';' + file.source);
-  }.bind(this));
+	if (body.type !== 'CallExpression') return;
 
+	var args = body.arguments;
+	if (args.length === 1) args = extractStandalone(args) || args;
+	if (args.length !== 3) return;
 
-	if(this.verbose){
-		this.bar.tick(50);
+	if (args[0].type !== 'ObjectExpression') return;
+	if (args[1].type !== 'ObjectExpression') return;
+	if (args[2].type !== 'ArrayExpression') return;
+
+	var files = args[0].properties;
+	var cache = args[1];
+	var entries = args[2].elements.map(function(e) {
+		return e.value
+	});
+
+	var maps = [];
+	var index = [];
+
+	this.unit  = files.length / 200;
+	this.progress = 10;
+
+	files.map(function(file) {
+		var body = file.value.elements[0].body.body;
+		var start, end;
+		if (body.length === 0) {
+			if (body.range) {
+				start = body.range[0];
+				end = body.range[1];
+			} else {
+				start = 0;
+				end = 0;
+			}
+		}
+		else {
+			start = body[0].range[0];
+			end = body[body.length - 1].range[1];
+		}
+
+		var depProps = file.value.elements[1].properties;
+
+		var deps = depProps.reduce(function(acc, dep) {
+			acc[dep.key.value] = dep.value.value;
+			if (maps[dep.value.value] == undefined) maps[dep.value.value] = { names: [] };
+			if (maps[dep.value.value].names[dep.key.value] == undefined) maps[dep.value.value].names[dep.key.value] = 0;
+			maps[dep.value.value].names[dep.key.value]++;
+			return acc;
+		}, {});
+
+		var row = {
+			id: file.key.value,
+			source: src.slice(start, end),
+			deps: deps
+		};
+
+		if (maps[row.id] == undefined) maps[row.id] = { names: [] };
+
+		maps[row.id].row = row;
+		maps[row.id].id = row.id;
+
+		if (entries.indexOf(row.id) >= 0) {
+			maps[row.id].names[fileName] = 1;
+			row.entry = true;
+		}
+
+		return row;
+
+		this.tick();
+
+	}.bind(this));
+
+	var index = maps.map(function(file) {
+		var item = file.row;
+		item.name = this.getItemUrl(_.keys(file.names), file);
+		return item;
+
+		this.tick();
+
+	}.bind(this));
+
+	return index;
+
+};
+
+function extractStandalone(args) {
+	if (args[0].type !== 'FunctionExpression') return;
+	if (args[0].body.length < 2) return;
+	if (args[0].body.body.length < 2) return;
+
+	args = args[0].body.body[1].argument;
+	if (args.type !== 'CallExpression') return;
+	if (args.callee.type !== 'CallExpression') return;
+
+	return args.callee.arguments;
+};
+
+BrowserifyUnpack.prototype.unpack = function() {
+
+	if (this.bVerbose) {
+		console.log("Reading file...")
 	}
 
-  files = unpack(this.src);
+	this.src = fs.readFileSync(this.filepath, 'utf8');
 
-  this.dir = path.resolve(toPath);
+	//files.forEach(function(file,index) {
+	//  this.src  = this.src.split('["' + file.id + '"][0].apply(exports,arguments)').join(';' + file.source);
+	//}.bind(this));
 
-	if(this.verbose){
-		this.bar.tick(80);
+	if (this.bVerbose) {
+		console.log("Unpacking...")
 	}
 
-  return this.generateFiles(files, this.dir);
+	var files = this.start(this.src, path.basename(this.filepath));
+
+	if (this.bVerbose) {
+		console.log("Saving Files...")
+	}
+
+	return this.generateFiles(files, this.output);
 
 };
 
 BrowserifyUnpack.prototype.generateFiles = function(files, toPath, tickStart) {
 
+	mkdirp.sync(toPath);
 
-  mkdirp.sync(toPath);
+	var indexFile = 0;
+	var map = [];
+	var index = {};
+	var baseUrl = this.name + '/browserify/';
+	mkdirp.sync(toPath + '/' + baseUrl);
 
-  var indexFile = 0;
-  var map = [];
-  var index = {};
-  files.forEach(function(file) {
+	files.forEach(function(file) {
 
-    var extension = path.extname(file.id);
-    var baseUrl = this.name+'/' + extension.substr(1) + '/';
-    mkdirp.sync(toPath + '/' + baseUrl);
-
-    var fileRealName =  file.id.replace(path.resolve('./') + '/', '')
-    .replace(/\//g, '-')
-    .replace(path.extname(file.id), '');
-
-    var devFileUrl =  baseUrl + fileRealName + extension;
-    var devFilePath = toPath + '/' + baseUrl + fileRealName + extension;
-
-    if (fs.existsSync(file.id)) {
-      var src = fs.readFileSync(file.id).toString();
-    }else {
-      var src = file.source;
-    }
-
-    var sourcemap = combineSourceMap.create();
-    sourcemap.addFile({
-      sourceFile: file.id.replace(path.resolve('./'), ''),
-      source:src
-    }, {
-      line: 1
-    });
-
-    var comment = sourcemap.comment();
-    var inline = new Buffer('\n' + comment + '\n');
-
-    fs.writeFileSync(devFilePath, 'var replace_' + indexFile + ' = function(require,module,exports){' +
-    '\n' + file.source + '\n' +
-    '}' + inline);
-
-    this.src = this.src.replace(file.source, 'return replace_' + indexFile + '(require,module,exports);');
-
-    map.push({
-      src: devFileUrl,
-      index: file.id,
-      line: 'var replace_' + indexFile + ' = function(require,module,exports){',
-    });
-
-    indexFile++;
- 		if(this.verbose){
-    	this.bar.tick(indexFile);
-    }
-
-  }.bind(this));
+		var devFileUrl =  baseUrl + file.name
+		var devFilePath = toPath + '/' + baseUrl + file.name;
+		var inline = "";
 
 
-  if(this.verbose){
-		this.bar.tick(100);
+		if(this.bSourceMap){
+
+
+		if (fs.existsSync(this.sourceDir + file.name)) {
+			var src = fs.readFileSync(this.sourceDir + file.name).toString();
+		}else {
+			var src = file.source;
+		}
+
+		var sourcemap = combineSourceMap.create();
+		sourcemap.addFile({
+			sourceFile: '/' + file.name,
+			source:src
+		}, {
+			line: 1
+		});
+
+		var comment = sourcemap.comment();
+		var inline = new Buffer('\n' + comment + '\n');
+
+		}
+
+		mkdirp.sync(path.dirname(devFilePath));
+
+		fs.writeFileSync(devFilePath, 'var replace_' + indexFile + ' = function(require,module,exports){' +
+		'\n' + file.source + '\n' +
+		'}' + inline);
+
+		this.src = this.src.replace(file.source, 'return replace_' + indexFile + '(require,module,exports);');
+
+		if (this.bMap) {
+			map.push({
+				src: devFileUrl,
+				index: file.name,
+				line: 'var replace_' + indexFile + ' = function(require,module,exports){',
+			});
+		}
+
+		indexFile++;
+
+	}.bind(this));
+
+	fs.writeFileSync(toPath + '/loader.js', this.src);
+
+	if (this.bMap) {
+	fs.writeFileSync(toPath+'/'+this.name +'/map.json', JSON.stringify(map));
+
+		if (this.bVerbose) {
+			console.log('Map generated');
+		}
+
 	}
 
-  fs.writeFileSync(toPath + '/loader.js', this.src);
+	if (this.bVerbose) {
+		console.log("Done")
+	}
 
-  return map;
+	return map;
 
 };
 
