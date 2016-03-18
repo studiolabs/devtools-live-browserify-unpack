@@ -25,8 +25,6 @@ function BrowserifyUnpack(options) {
 		this.bSourceMap = options.sourcemap || false ;
 		this.write = options.write || fs.writeFileSync ;
 		this.mkdir = options.mkdir || mkdirp.sync ;
-		//this.write = fs.writeFileSync ;
-		//this.mkdir =  mkdirp.sync ;
 		this.withNode = options.withNode || false ;
 		this.output = path.resolve( options.output || path.dirname(this.filepath));
 		this.index = [];
@@ -526,7 +524,7 @@ BrowserifyUnpack.prototype.generateFiles = function(files, originalSource, sourc
 
 	var sourcemap = convertSourceMap.fromObject(loaderGenerator);
 
-	this.write(toPath + '/loader.js',  loader +'\n'+sourcemap.toComment());
+	this.write(toPath + '/loader.js',  loader +'\n'+ sourcemap.toComment());
 
 	if (this.bMap) {
 
