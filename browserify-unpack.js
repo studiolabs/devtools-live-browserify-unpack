@@ -131,10 +131,10 @@ BrowserifyUnpack.prototype.readSource = function(src, fileName) {
 		var item = maps[id];
 		item.row.node = false ;
 		if(item.row.path){
-			item.row.name = item.row.path.replace(this.sourceDir, '');
+			item.row.src = item.row.path.replace(this.sourceDir, '');
 			var isModule = item.row.path.indexOf('node_modules');
 			if( isModule > 0){
-				item.row.name = item.row.path.substr(isModule);
+				item.row.src = item.row.path.substr(isModule);
 				item.row.node = true ;
 			}
 			index[item.row.start] = item.row;
@@ -297,13 +297,13 @@ BrowserifyUnpack.prototype.createFileContent = function(browserifySource, browse
 		var mapping = browserifySourceMap.mappings[i];
 
 		generator.addMapping({
-		  source: '/'+file.name,
+		  source: '/'+file.src,
 		  original: { line: mapping.originalLine, column: mapping.originalColumn },
 		  generated: { line: mapping.generatedLine - lineDiff, column: mapping.generatedColumn }
 		});
 	}
 
-	generator.setSourceContent('/'+file.name, browserifySourceMap.original);
+	generator.setSourceContent('/'+file.src, browserifySourceMap.original);
 	var sourcemap = convertSourceMap.fromJSON(generator.toString());
 	var inlineSourceMap = sourcemap.toComment();
 
@@ -331,8 +331,6 @@ BrowserifyUnpack.prototype.fillPath = function(maps, item , filepath) {
 					var res =  Module._findPath(dependencie, Module._nodeModulePaths(dirpath));
 					if(res){
 						this.fillPath(maps, maps[item.row.deps[dependencie]], res);
-					}else{
-						item.path = dirpath+dependencie;
 					}
 				}
 			}
@@ -419,35 +417,33 @@ BrowserifyUnpack.prototype.generateFiles = function(files, originalSource, sourc
 
 	files.forEach(function(file) {
 
-
 		loader += originalSource.slice(start, file.start);
 		start = file.start;
 
 		if(this.withNode == false &&  file.node == true) return;
 
 
-		var devFileUrl =  baseUrl + file.name
-		var devFilePath = toPath + '/' + baseUrl + file.name;
+		var devFileUrl =  baseUrl + file.src
+		var devFilePath = toPath + '/' + baseUrl + file.src;
 		var inline = "";
 		var generatedCode = originalSource.slice(file.start, file.end);
 
 		this.mkdir(path.dirname(devFilePath));
 
-		var browserifyVarName = 'browserify_' +file.name.replace(/([\/|\.|\-])/g, '_');
+		//var browserifyVarName = 'browserify_' +file.src.replace(/([\/|\.|\-])/g, '_');
 
-		var browserifyVarName = file.name.replace(/([\/|\.|\-])/g, '_');
+		//var browserifyVarName = file.src.replace(/([\/|\.|\-])/g, '_');
 
-        var moduleName = path.parse(file.path).name.replace(/([\/|\.|\-])/g, '_');
+        var browserifyVarName = file.event = file.src.replace(/([\/|\.|\-])/g, '_');
 
-		var browserifyUpdate = this.createUpdateEvent(browserifyVarName, moduleName);
+		var browserifyUpdate = this.createUpdateEvent(browserifyVarName);
 
 		var browserifyLine = 'var ' +browserifyVarName+ ' = function(require, module, exports){';
 
 		var smf = sourceMapData.files[file.path];
 		smf.file = file;
 
-		var browserifyFunction = browserifyVarName+ '(require,module,exports);\n'+
-		browserifyUpdate;
+		var browserifyFunction = browserifyVarName+ '(require,module,exports);\n'+browserifyUpdate;
 
 		var browserifyFunctionLines = browserifyFunction.split('\n').length;
 
@@ -464,13 +460,13 @@ BrowserifyUnpack.prototype.generateFiles = function(files, originalSource, sourc
 					var mapping = smf.mappings[i];
 
 					file.generator.addMapping({
-					  source: '/'+file.name,
+					  source: '/'+file.src,
 					  original: { line: mapping.originalLine, column: mapping.originalColumn },
 					  generated: { line: mapping.generatedLine - lineDiff , column: mapping.generatedColumn }
 					});
 				}
 
-				file.generator.setSourceContent('/'+file.name, smf.original);
+				file.generator.setSourceContent('/'+file.src, smf.original);
 				file.sourcemap = convertSourceMap.fromJSON(file.generator.toString());
 				var inline = file.sourcemap.toComment();
 		}
@@ -483,10 +479,10 @@ BrowserifyUnpack.prototype.generateFiles = function(files, originalSource, sourc
 
 		if (this.bMap) {
 			map.push({
-				variable : browserifyVarName,
+				event : file.event,
 				url: devFileUrl,
 				path: file.path,
-				name: file.name,
+				src: file.src,
 				deps: _.keys(file.deps),
 				line: browserifyLine
 			});
@@ -507,7 +503,7 @@ BrowserifyUnpack.prototype.generateFiles = function(files, originalSource, sourc
 			for( var i in smf.mappings ){
 				var mapping = smf.mappings[i];
 				loaderGenerator.addMapping({
-				  source: '/'+smf.file.name,
+				  source: '/'+smf.file.src,
 				  original: { line: mapping.originalLine, column: mapping.originalColumn },
 				  generated: { line: mapping.generatedLine - diff, column: mapping.generatedColumn }
 				});
@@ -517,7 +513,7 @@ BrowserifyUnpack.prototype.generateFiles = function(files, originalSource, sourc
 
 			diff +=  smf.start.generatedLine - smf.end.generatedLine - smf.file.lines;
 
-			loaderGenerator.setSourceContent('/'+smf.file.name, smf.original);
+			loaderGenerator.setSourceContent('/'+smf.file.src, smf.original);
 
 
 	};
@@ -544,13 +540,13 @@ BrowserifyUnpack.prototype.generateFiles = function(files, originalSource, sourc
 
 };
 
-BrowserifyUnpack.prototype.createUpdateEvent = function(event, moduleName) {
+BrowserifyUnpack.prototype.createUpdateEvent = function(eventName) {
 
 	return "if(module.exports.prototype !== undefined){\n"+
 		"if(module.exports.prototype.constructor !== undefined ){\n"+
 		" 	var Module = module.exports; \n"+
-		"	var "+moduleName+" =function(){\n"+
-		"		this.liveEvent = '"+event+"';\n"+
+		"	var "+eventName+" =function(){\n"+
+		"		this.liveEvent = '"+eventName+"';\n"+
 		"		window.addEventListener(this.liveEvent,function(){\n"+
 		"			if(this.onLiveChange !== undefined){\n"+
 		"				this.onLiveChange();\n"+
@@ -558,10 +554,10 @@ BrowserifyUnpack.prototype.createUpdateEvent = function(event, moduleName) {
 		"		}.bind(this));\n"+
 		"		return Module.apply(this,arguments);\n"+
 		"	};\n"+
-		" 	Object.assign("+moduleName+", Module);\n"+
-		"	"+moduleName+".prototype = Module.prototype;\n"+
-		"	"+moduleName+".prototype.constructor = "+moduleName+";\n"+
-		"	module.exports = "+moduleName+";\n"+
+		" 	Object.assign("+eventName+", Module);\n"+
+		"	"+eventName+".prototype = Module.prototype;\n"+
+		"	"+eventName+".prototype.constructor = "+eventName+";\n"+
+		"	module.exports = "+eventName+";\n"+
 		"}\n"+
 	"}";
 
