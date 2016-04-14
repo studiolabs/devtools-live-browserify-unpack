@@ -9,6 +9,7 @@ var sourceMap = require('source-map');
 var convertSourceMap = require('convert-source-map');
 var _ = require('lodash');
 var resolve = require('browser-resolve');
+var Immutable = require('immutable');
 
 var util = require("util");
 
@@ -166,7 +167,7 @@ BrowserifyUnpack.prototype.extract = function(file, browserifySource) {
 		console.log("Extracting Content..");
 	}
 
-	var fileContentPosition = this.getContentPosition(browserifySource);
+	var fileContentInfo = this.getContentInfo(browserifySource);
 
 	if (this.bVerbose) {
 		console.log("Reading sourcemap...")
@@ -178,7 +179,7 @@ BrowserifyUnpack.prototype.extract = function(file, browserifySource) {
 		console.log("Creating file sontent...")
 	}
 
-	return this.createFileContent(browserifySource, fileContentPosition, browserifySourceMap, file);
+	return this.createFileContent(browserifySource, fileContentInfo, browserifySourceMap, file);
 }
 
 BrowserifyUnpack.prototype.getFileSourceMap = function(fileContent, filePath) {
@@ -210,7 +211,7 @@ BrowserifyUnpack.prototype.getFileSourceMap = function(fileContent, filePath) {
 
 
 
-BrowserifyUnpack.prototype.getContentPosition = function(src) {
+BrowserifyUnpack.prototype.getContentInfo = function(src) {
 
 	// If src is a Buffer, esprima will just stringify it, so we beat them to
 	// the punch. This avoids the problem where we're using esprima's range
@@ -253,6 +254,7 @@ BrowserifyUnpack.prototype.getContentPosition = function(src) {
 	var keys = [];
 	var main = null;
 
+
 	for (var i in files) {
 
 		var file = files[i];
@@ -274,7 +276,15 @@ BrowserifyUnpack.prototype.getContentPosition = function(src) {
 				end = body[body.length - 1].range[1];
 			}
 
-			return { start : start, end : end };
+			var depProps = file.value.elements[1].properties;
+
+			var deps = depProps.reduce(function(acc, dep) {
+				if('oMfpAn' == dep.key.value) return acc;
+				acc[dep.key.value] = dep.value.value;
+				return acc;
+			}, {});
+
+			return { start : start, end : end , deps:  deps };
 	    }
 
 	};
@@ -282,10 +292,10 @@ BrowserifyUnpack.prototype.getContentPosition = function(src) {
 };
 
 
-BrowserifyUnpack.prototype.createFileContent = function(browserifySource, browserifySourcePosition, browserifySourceMap, file) {
+BrowserifyUnpack.prototype.createFileContent = function(browserifySource, fileContentInfo, browserifySourceMap, file) {
 
 
-	var browserifyContent = browserifySource.slice(browserifySourcePosition.start, browserifySourcePosition.end);
+	var browserifyContent = browserifySource.slice(fileContentInfo.start, fileContentInfo.end);
 
 	var generator = new sourceMap.SourceMapGenerator({
 	  file: '/'+file.url
@@ -309,7 +319,8 @@ BrowserifyUnpack.prototype.createFileContent = function(browserifySource, browse
 
 	return {
 		content : browserifyContent,
-		mapInline : inlineSourceMap
+		mapInline : inlineSourceMap,
+		info : fileContentInfo
 	};
 
 };
@@ -482,7 +493,8 @@ BrowserifyUnpack.prototype.generateFiles = function(files, originalSource, sourc
 				url: devFileUrl,
 				path: file.path,
 				src: file.src,
-				deps: _.keys(file.deps),
+				externals: _.keys(file.deps),
+				deps : Immutable.Map(file.deps),
 				line: browserifyLine
 			});
 		}

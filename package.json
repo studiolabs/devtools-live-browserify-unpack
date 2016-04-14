@@ -26,6 +26,7 @@
     "esprima-fb": "^15001.1001.0-dev-harmony-fb",
     "event-stream": "^3.3.2",
     "glob": "^5.0.5",
+    "immutable": "^3.7.6",
     "lodash": "^3.10.1",
     "mkdirp": "^0.5.1",
     "source-map": "^0.5.3",
