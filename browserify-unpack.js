@@ -434,9 +434,9 @@ BrowserifyUnpack.prototype.generateFiles = function(files, originalSource, sourc
 
 		//var browserifyVarName = file.src.replace(/([\/|\.|\-])/g, '_');
 
-        var browserifyVarName = file.event = file.src.replace(/([\/|\.|\-])/g, '_');
+        var browserifyVarName = file.src.replace(/([\/|\.|\-])/g, '_');
 
-		var browserifyUpdate = this.createUpdateEvent(browserifyVarName);
+		var browserifyUpdate = this.createUpdateEvent(file.src);
 
 		var browserifyLine = 'var ' +browserifyVarName+ ' = function(require, module, exports){';
 
@@ -479,7 +479,6 @@ BrowserifyUnpack.prototype.generateFiles = function(files, originalSource, sourc
 
 		if (this.bMap) {
 			map.push({
-				event : file.event,
 				url: devFileUrl,
 				path: file.path,
 				src: file.src,
@@ -540,13 +539,16 @@ BrowserifyUnpack.prototype.generateFiles = function(files, originalSource, sourc
 
 };
 
-BrowserifyUnpack.prototype.createUpdateEvent = function(eventName) {
+BrowserifyUnpack.prototype.createUpdateEvent = function(eventFileEvent) {
+
+	 var browserifyVarName = 'event___'+eventFileEvent.replace(/([\/|\.|\-])/g, '_');
+
 
 	return "if(module.exports.prototype !== undefined){\n"+
 		"if(module.exports.prototype.constructor !== undefined ){\n"+
 		" 	var Module = module.exports; \n"+
-		"	var "+eventName+" =function(){\n"+
-		"		this.liveEvent = '"+eventName+"';\n"+
+		"	var "+browserifyVarName+" =function(){\n"+
+		"		this.liveEvent = '"+eventFileEvent+"';\n"+
 		"		window.addEventListener(this.liveEvent,function(){\n"+
 		"			if(this.onLiveChange !== undefined){\n"+
 		"				this.onLiveChange();\n"+
@@ -554,10 +556,10 @@ BrowserifyUnpack.prototype.createUpdateEvent = function(eventName) {
 		"		}.bind(this));\n"+
 		"		return Module.apply(this,arguments);\n"+
 		"	};\n"+
-		" 	Object.assign("+eventName+", Module);\n"+
-		"	"+eventName+".prototype = Module.prototype;\n"+
-		"	"+eventName+".prototype.constructor = "+eventName+";\n"+
-		"	module.exports = "+eventName+";\n"+
+		" 	Object.assign("+browserifyVarName+", Module);\n"+
+		"	"+browserifyVarName+".prototype = Module.prototype;\n"+
+		"	"+browserifyVarName+".prototype.constructor = "+browserifyVarName+";\n"+
+		"	module.exports = "+browserifyVarName+";\n"+
 		"}\n"+
 	"}";
 
