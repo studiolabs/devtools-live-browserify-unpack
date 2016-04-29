@@ -1,6 +1,6 @@
 {
   "name": "browserify-unpack",
-  "version": "0.3.6",
+  "version": "0.3.7",
   "description": "Browserify unpack cut a browserify bundle in multiple files",
   "license": "MIT",
   "repository": {
