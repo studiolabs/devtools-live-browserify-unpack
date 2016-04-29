@@ -27,6 +27,7 @@ function BrowserifyUnpack(options) {
 		this.write = options.write || fs.writeFileSync ;
 		this.mkdir = options.mkdir || mkdirp.sync ;
 		this.withNode = options.withNode || false ;
+		this.loaderUrl = options.loaderUrl || this.name+'/loader.js' ;
 		this.output = path.resolve( options.output || path.dirname(this.filepath));
 		this.index = [];
 		this.link = [];
@@ -351,13 +352,15 @@ BrowserifyUnpack.prototype.fillPath = function(maps, item , filepath) {
 	return  maps;
 }
 
-BrowserifyUnpack.prototype.unpack = function() {
+BrowserifyUnpack.prototype.unpack = function(browserifySource) {
 
 	if (this.bVerbose) {
 		console.log("Reading file...");
 	}
 
-	var browserifySource = fs.readFileSync(this.filepath, 'utf8');
+	if(browserifySource == undefined){
+		browserifySource = fs.readFileSync(this.filepath, 'utf8');
+	}
 
 	var browserifyFiles = this.readSource(browserifySource, path.basename(this.filepath));
 
@@ -411,6 +414,8 @@ BrowserifyUnpack.prototype.readSourceMap = function(src) {
 	};
 };
 
+
+
 BrowserifyUnpack.prototype.generateFiles = function(files, originalSource, sourceMapData, toPath) {
 
 	this.mkdir(toPath);
@@ -423,7 +428,7 @@ BrowserifyUnpack.prototype.generateFiles = function(files, originalSource, sourc
 	var start = 0;
 
 	var loaderGenerator = new sourceMap.SourceMapGenerator({
-	  file: '/'+"loader.js"
+	  file: '/'+this.loaderUrl
 	});
 
 	files.forEach(function(file) {
@@ -441,13 +446,9 @@ BrowserifyUnpack.prototype.generateFiles = function(files, originalSource, sourc
 
 		this.mkdir(path.dirname(devFilePath));
 
-		//var browserifyVarName = 'browserify_' +file.src.replace(/([\/|\.|\-])/g, '_');
-
-		//var browserifyVarName = file.src.replace(/([\/|\.|\-])/g, '_');
-
         var browserifyVarName = file.src.replace(/([\/|\.|\-])/g, '_');
 
-		var browserifyUpdate = this.createUpdateEvent(file.src);
+		var browserifyUpdate = this.createUpdateEvent(file.src , _.values(file.deps));
 
 		var browserifyLine = 'var ' +browserifyVarName+ ' = function(require, module, exports){';
 
@@ -481,8 +482,10 @@ BrowserifyUnpack.prototype.generateFiles = function(files, originalSource, sourc
 				file.sourcemap = convertSourceMap.fromJSON(file.generator.toString());
 				var inline = file.sourcemap.toComment();
 		}
+					+
 
-		this.write(devFilePath,  browserifyLine+ '\n' + generatedCode + '\n' + '}' + '\n' + inline);
+
+		this.write(devFilePath,  browserifyLine +'\n' + generatedCode + '\n' + '}' + '\n' + inline);
 
 		loader += browserifyFunction;
 
@@ -531,7 +534,9 @@ BrowserifyUnpack.prototype.generateFiles = function(files, originalSource, sourc
 
 	var sourcemap = convertSourceMap.fromObject(loaderGenerator);
 
-	this.write(toPath + '/loader.js',  loader +'\n'+ sourcemap.toComment());
+	var  loaderContent = loader +'\n'+ sourcemap.toComment();
+
+	this.write(toPath + '/'+this.loaderUrl,  loaderContent);
 
 	if (this.bMap) {
 
@@ -547,26 +552,40 @@ BrowserifyUnpack.prototype.generateFiles = function(files, originalSource, sourc
 		console.log("Done");
 	}
 
-	return map;
+	return  { map :map, loaderContent : loaderContent};
 
 };
 
-BrowserifyUnpack.prototype.createUpdateEvent = function(eventFileEvent) {
+
+BrowserifyUnpack.prototype.createUpdateEvent = function(eventFileEvent, externals) {
 
 	 var browserifyVarName = 'event___'+eventFileEvent.replace(/([\/|\.|\-])/g, '_');
 
-
-	return "if(module.exports.prototype !== undefined){\n"+
+	 var script = "if(module.exports.prototype !== undefined){\n"+
 		"if(module.exports.prototype.constructor !== undefined ){\n"+
 		" 	var Module = module.exports; \n"+
 		"	var "+browserifyVarName+" =function(){\n"+
 		"		this.liveEvent = '"+eventFileEvent+"';\n"+
 		"		window.addEventListener(this.liveEvent,function(){\n"+
 		"			if(this.onLiveChange !== undefined){\n"+
-		"				this.onLiveChange();\n"+
+		"				this.onLiveChange().bind(this);\n"+
 		"			}\n"+
-		"		}.bind(this));\n"+
-		"		return Module.apply(this,arguments);\n"+
+		"		}.bind(this));\n";
+
+	for(var i in externals){
+		var externalEvent = externals[i].replace(this.sourceDir, '').replace(this.rootDir, '');
+
+		if(externalEvent.indexOf('node_modules') == -1){
+			script += "		window.addEventListener('"+externalEvent+"',function(){\n"+
+			"			console.log('"+externalEvent+"'); \n"+
+			"			if(this.onLiveExternalChange !== undefined){\n"+
+			"				this.onLiveExternalChange().bind(this);\n"+
+			"			}\n"+
+			"		}.bind(this));\n";
+		}
+	}
+
+	script +="		return Module.apply(this,arguments);\n"+
 		"	};\n"+
 		" 	Object.assign("+browserifyVarName+", Module);\n"+
 		"	"+browserifyVarName+".prototype = Module.prototype;\n"+
@@ -574,6 +593,9 @@ BrowserifyUnpack.prototype.createUpdateEvent = function(eventFileEvent) {
 		"	module.exports = "+browserifyVarName+";\n"+
 		"}\n"+
 	"}";
+
+		return script;
+
 
 };
 
