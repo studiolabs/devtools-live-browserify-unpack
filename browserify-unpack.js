@@ -302,15 +302,13 @@ BrowserifyUnpack.prototype.createFileContent = function(browserifySource, fileCo
 	  file: '/'+file.url
 	});
 
-	var lineDiff = browserifySourceMap.start.generatedLine - 1;
-
 	for( var i in browserifySourceMap.mappings ){
 		var mapping = browserifySourceMap.mappings[i];
 
 		generator.addMapping({
 		  source: '/'+file.src,
 		  original: { line: mapping.originalLine, column: mapping.originalColumn },
-		  generated: { line: mapping.generatedLine - lineDiff, column: mapping.generatedColumn }
+		  generated: { line: mapping.generatedLine , column: mapping.generatedColumn }
 		});
 	}
 
@@ -431,6 +429,8 @@ BrowserifyUnpack.prototype.generateFiles = function(files, originalSource, sourc
 	  file: '/'+this.loaderUrl
 	});
 
+	var lineDiff = 0;
+
 	files.forEach(function(file) {
 
 		loader += originalSource.slice(start, file.start);
@@ -459,14 +459,14 @@ BrowserifyUnpack.prototype.generateFiles = function(files, originalSource, sourc
 
 		var browserifyFunctionLines = browserifyFunction.split('\n').length;
 
-		file.lines = generatedCode.split('\n').length;
+		file.lines = generatedCode.split('\n').length ;
 
 		if(this.bSourceMap && file.node == false){
 				file.generator = new sourceMap.SourceMapGenerator({
 				  file: '/'+devFileUrl
 				});
 
-				var lineDiff  = smf.start.generatedLine - browserifyFunctionLines;
+				lineDiff  += browserifyFunctionLines;
 
 				for( var i in smf.mappings ){
 					var mapping = smf.mappings[i];
@@ -474,7 +474,7 @@ BrowserifyUnpack.prototype.generateFiles = function(files, originalSource, sourc
 					file.generator.addMapping({
 					  source: '/'+file.src,
 					  original: { line: mapping.originalLine, column: mapping.originalColumn },
-					  generated: { line: mapping.generatedLine - lineDiff , column: mapping.generatedColumn }
+					  generated: { line: mapping.generatedLine + lineDiff , column: mapping.generatedColumn }
 					});
 				}
 
@@ -482,7 +482,6 @@ BrowserifyUnpack.prototype.generateFiles = function(files, originalSource, sourc
 				file.sourcemap = convertSourceMap.fromJSON(file.generator.toString());
 				var inline = file.sourcemap.toComment();
 		}
-					+
 
 
 		this.write(devFilePath,  browserifyLine +'\n' + generatedCode + '\n' + '}' + '\n' + inline);
@@ -525,10 +524,9 @@ BrowserifyUnpack.prototype.generateFiles = function(files, originalSource, sourc
 
 		}
 
-			diff +=  smf.start.generatedLine - smf.end.generatedLine - smf.file.lines;
+			diff +=  ( smf.start.generatedLine + smf.file.lines ) -  ( smf.end.generatedLine + smf.file.lines ) ;
 
 			loaderGenerator.setSourceContent('/'+smf.file.src, smf.original);
-
 
 	};
 
