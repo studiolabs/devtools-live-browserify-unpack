@@ -532,7 +532,7 @@ BrowserifyUnpack.prototype.generateFiles = function(files, originalSource, sourc
 
 	var sourcemap = convertSourceMap.fromObject(loaderGenerator);
 
-	var  loaderContent = loader +'\n'+ sourcemap.toComment();
+	var  loaderContent = convertSourceMap.removeComments(loader) +'\n'+ sourcemap.toComment();
 
 	this.write(toPath + '/'+this.loaderUrl,  loaderContent);
 
