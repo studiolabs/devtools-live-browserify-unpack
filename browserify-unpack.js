@@ -57,8 +57,8 @@ function BrowserifyUnpack(options) {
 		this.nodeDir = options.nodeDir || Module._nodeModulePaths(path.dirname('./'))[0];
 		this.sourceDir = path.resolve( options.directory || path.dirname(this.filepath)) + '/';
 		this.rootDir = path.resolve( options.root || process.cwd()) + '/';
-		this.entryFile = options.entryFile;
-		this.relativizeOutputPath = options.relativizeOutputPath || null;
+		this.entryFile = path.resolve( options.entryFile || options.entry );
+		this.relativizeOutputPath = options.relativizeOutputPath || options.relativizeoutputpath || false;
 	}
 
 	if(options.verbose) {
@@ -148,13 +148,13 @@ BrowserifyUnpack.prototype.readSource = function (src, fileName) {
 
 	for(var id in maps) {
 		var item = maps[id];
-		item.row.node = false ;
+		item.row.node = false;
 		if(item.row.path) {
 			item.row.src = item.row.path.replace(srcDirForwardSlash, '').replace(srcDirBackSlash, '');
 			var isModule = item.row.path.indexOf('node_modules');
 			if(isModule > 0) {
 				item.row.src = item.row.path.substr(isModule);
-				item.row.node = true ;
+				item.row.node = true;
 			}
 			index[item.row.start] = item.row;
 		}
@@ -315,15 +315,13 @@ BrowserifyUnpack.prototype.createFileContent = function (browserifySource, fileC
 		file: '/'+file.url
 	});
 
-	var lineDiff = browserifySourceMap.start.generatedLine - 1;
-
-	for(var i in browserifySourceMap.mappings) {
+	for (var i in browserifySourceMap.mappings) {
 		var mapping = browserifySourceMap.mappings[i];
 
 		generator.addMapping({
 			source: '/'+file.src,
 			original: { line: mapping.originalLine, column: mapping.originalColumn },
-			generated: { line: mapping.generatedLine - lineDiff, column: mapping.generatedColumn }
+			generated: { line: mapping.generatedLine, column: mapping.generatedColumn }
 		});
 	}
 
@@ -345,9 +343,9 @@ BrowserifyUnpack.prototype.createFileContent = function (browserifySource, fileC
 BrowserifyUnpack.prototype.fillPath = function (maps, item, entryFilePath) {
 
 	if(item.row.path === undefined) {
-	    item.row.path = entryFilePath;
+		item.row.path = entryFilePath;
 		for(var dependencie in item.row.deps) {
-		    var dirpath = path.dirname(entryFilePath) + '/';
+			var dirpath = path.dirname(entryFilePath) + '/';
 			var res = Module._findPath(dependencie, [dirpath, this.sourceDir]);
 			if(res) {
 				this.fillPath(maps, maps[item.row.deps[dependencie]], res);
@@ -376,7 +374,7 @@ BrowserifyUnpack.prototype.fillPath = function (maps, item, entryFilePath) {
 BrowserifyUnpack.prototype.unpack = function (browserifySource) {
 
 	if (this.bVerbose) {
-		console.log("Reading file...");
+		console.log("Reading file '" + this.filepath + "' src: " + (browserifySource != null ? (browserifySource.length + " length") : null) + "...");
 	}
 
 	if(browserifySource == undefined) {
@@ -428,15 +426,16 @@ BrowserifyUnpack.prototype.readSourceMap = function (src) {
 				};
 			}
 			files[path].mappings.push(m);
-
 		}
-
+		else if (this.bVerbose) {
+			console.error("could not find source map file '" + m.source + "'");
+		}
 	}.bind(this), {}, consumer.GENERATED_ORDER);
 
 	for(var i in files) {
 		files[i].start = files[i].mappings[0];
 		files[i].end = files[i].mappings.slice(-1)[0];
-		loaderMap[files[i].start] = files[i];
+		loaderMap[files[i].start.source] = files[i];
 	}
 
 	return {
@@ -473,6 +472,8 @@ BrowserifyUnpack.prototype.generateFiles = function (files, originalSource, sour
 	}
 
 	var fileCount = 0;
+
+	var lineDiff = 0;
 
 	files.forEach(function(file) {
 
@@ -524,7 +525,7 @@ BrowserifyUnpack.prototype.generateFiles = function (files, originalSource, sour
 				file: '/'+devFileUrl
 			});
 
-			var lineDiff = smf.start.generatedLine - browserifyFunctionLineCount;
+			lineDiff  += browserifyFunctionLines;
 
 			for(var i in smf.mappings) {
 				var mapping = smf.mappings[i];
@@ -532,7 +533,7 @@ BrowserifyUnpack.prototype.generateFiles = function (files, originalSource, sour
 				file.generator.addMapping({
 					source: '/' + file.src,
 					original: { line: mapping.originalLine, column: mapping.originalColumn },
-					generated: { line: mapping.generatedLine - lineDiff, column: mapping.generatedColumn }
+					generated: { line: mapping.generatedLine + lineDiff, column: mapping.generatedColumn }
 				});
 			}
 
@@ -572,25 +573,27 @@ BrowserifyUnpack.prototype.generateFiles = function (files, originalSource, sour
 	for(var i in sourceMapData.loader) {
 		var smf = sourceMapData.loader[i];
 
-		if(smf.file.node == true) {
-			for(var i in smf.mappings) {
-				var mapping = smf.mappings[i];
-				loaderGenerator.addMapping({
-					source: '/' + smf.file.src,
-					original: { line: mapping.originalLine, column: mapping.originalColumn },
-					generated: { line: mapping.generatedLine - diff, column: mapping.generatedColumn }
-				});
+		if (smf.file != null) {
+			if(smf.file.node == true) {
+				for(var i in smf.mappings) {
+					var mapping = smf.mappings[i];
+					loaderGenerator.addMapping({
+						source: '/' + smf.file.src,
+						original: { line: mapping.originalLine, column: mapping.originalColumn },
+						generated: { line: mapping.generatedLine - diff, column: mapping.generatedColumn }
+					});
+				}
 			}
+
+			diff += (smf.start.generatedLine + smf.file.lines) - (smf.end.generatedLine + smf.file.lines);
+
+			loaderGenerator.setSourceContent('/' + smf.file.src, smf.original);
 		}
-
-		diff += smf.start.generatedLine - smf.end.generatedLine - smf.file.lines;
-
-		loaderGenerator.setSourceContent('/'+smf.file.src, smf.original);
 	}
 
 	var sourcemap = convertSourceMap.fromObject(loaderGenerator);
 
-	var loaderContent = loader +'\n'+ sourcemap.toComment();
+	var  loaderContent = convertSourceMap.removeComments(loader) +'\n'+ sourcemap.toComment();
 
 	if (this.bVerbose) {
 		console.log("Writing: '" + this.loaderUrl + "'");
@@ -660,6 +663,8 @@ BrowserifyUnpack.prototype.createUpdateEvent = function (eventFileEvent, externa
 
 
 // helper functions
+
+/** Return the 'arguments' from an esprima parsed AST function call node, if the node type is not correct, return undefined */
 function extractStandalone(args) {
 	if(args[0].type !== 'FunctionExpression') return;
 	if(args[0].body.length < 2) return;
@@ -672,7 +677,7 @@ function extractStandalone(args) {
 	return args.callee.arguments;
 }
 
-
+/** Get an object's own property values */
 function values(obj) {
 	var res = [];
 	for(var key in obj) {
