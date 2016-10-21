@@ -57,7 +57,7 @@ function BrowserifyUnpack(options) {
 		this.nodeDir = options.nodeDir || Module._nodeModulePaths(path.dirname('./'))[0];
 		this.sourceDir = path.resolve( options.directory || path.dirname(this.filepath)) + '/';
 		this.rootDir = path.resolve( options.root || process.cwd()) + '/';
-		this.entryFile = path.resolve( options.entryFile || options.entry );
+		this.entryFile = (options.entryFile || options.entry) ? path.resolve( options.entryFile || options.entry ) : null;
 		this.relativizeOutputPath = options.relativizeOutputPath || options.relativizeoutputpath || false;
 	}
 

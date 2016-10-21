@@ -4,7 +4,7 @@ This project does its best to adhere to [Semantic Versioning](http://semver.org/
 
 
 --------
-## [0.4.0] - 2016-05-22
+## [0.4.0] - 2016-10-21
 ### Added
 * several new logs when 'verbose' output is enabled
 * generateFiles() relativizes absolute paths if 'relativizeOutputPath' option is provided
@@ -20,9 +20,10 @@ This project does its best to adhere to [Semantic Versioning](http://semver.org/
 
 ### Fixed
 * generateFiles() inserts valid unpacked file variable name for windows paths
-* createUpdateEvent() fixed 'externals[i].replace(...' is undefined error caused by externals containing numeric indexes rather than string paths
+* createUpdateEvent() fixed 'externals[i].replace(...)' is undefined error caused by externals containing numeric indexes rather than string paths
 * readSource() properly relativizes windows paths
 * readSourceMap() now parses source map URL comments properly, same as inline source map comments
+* readSourceMap() - the return value's 'loader' property now properly maps file paths to file source info (previously it was returning an object containing one key named '[object Object]' because it was trying to use an object as a key)
 
 ### Removed
 * removed lodash dependency (was only used for _.keys() and _.values() which any near modern JS engine supports natively)
