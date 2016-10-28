@@ -83,6 +83,58 @@ function BrowserifyUnpack(options) {
 }
 
 
+/** Main function used to kick off the unpacking process.
+ * @param {string} [browserifySource] an optional source code string to unpack,
+ * if null, then the constructor's 'options.file' option is read from the filesystem and unpacked
+ */
+BrowserifyUnpack.prototype.unpack = function (browserifySource) {
+
+	if (this.bVerbose) {
+		console.log("Reading file '" + this.filepath + "' src: " + (browserifySource != null ? (browserifySource.length + " length") : null) + "...");
+	}
+
+	if(browserifySource == undefined) {
+		browserifySource = fs.readFileSync(this.filepath, 'utf8');
+	}
+
+	var browserifyFiles = this.readSource(browserifySource, path.basename(this.filepath));
+
+	if (this.bVerbose) {
+		console.log("Reading source map...")
+	}
+
+	var browserifySourceMap = this.readSourceMap(browserifySource, browserifyFiles);
+
+	if (this.bVerbose) {
+		console.log("Saving files...")
+	}
+
+	return this.generateFiles(browserifyFiles, browserifySource, browserifySourceMap, this.output);
+};
+
+
+
+BrowserifyUnpack.prototype.extract = function (file, browserifySource) {
+
+	if (this.bVerbose) {
+		console.log("Extracting Content..");
+	}
+
+	var fileContentInfo = this.getContentInfo(browserifySource);
+
+	if (this.bVerbose) {
+		console.log("Reading sourcemap...")
+	}
+
+	var browserifySourceMap = this.getFileSourceMap(browserifySource, file.path);
+
+	if (this.bVerbose) {
+		console.log("Creating file content...")
+	}
+
+	return this.createFileContent(browserifySource, fileContentInfo, browserifySourceMap, file);
+};
+
 BrowserifyUnpack.prototype.readSource = function (src, fileName) {
 
 	var astResult = this.extractBrowserifyAst(src);
@@ -126,13 +178,13 @@ BrowserifyUnpack.prototype.readSource = function (src, fileName) {
 			end: end
 		};
 
-		if (maps[row.id] == undefined) maps[row.id] = { names: [] };
+		if (maps[row.id] == undefined) maps[row.id] = {};
 
 		maps[row.id].row = row;
 		maps[row.id].id = row.id;
 
 		if (entries.indexOf(row.id) >= 0) {
-			maps[row.id].names[fileName] = 1;
+			row.path = this.sourceDir+fileName;
 			row.entry = true;
 			main = maps[row.id];
 		}
@@ -148,9 +200,11 @@ BrowserifyUnpack.prototype.readSource = function (src, fileName) {
 
 	for(var id in maps) {
 		var item = maps[id];
-		item.row.node = false;
+		item.row.node = false
+		
 		if(item.row.path) {
-			item.row.src = item.row.path.replace(srcDirForwardSlash, '').replace(srcDirBackSlash, '');
+			//console.log(item.row.path);
+			item.row.src = item.row.path.replace(srcDirForwardSlash, '').replace(srcDirBackSlash, '').replace(this.rootDir, '');
 			var isModule = item.row.path.indexOf('node_modules');
 			if(isModule > 0) {
 				item.row.src = item.row.path.substr(isModule);
@@ -164,26 +218,6 @@ BrowserifyUnpack.prototype.readSource = function (src, fileName) {
 };
 
 
-BrowserifyUnpack.prototype.extract = function (file, browserifySource) {
-
-	if (this.bVerbose) {
-		console.log("Extracting Content..");
-	}
-
-	var fileContentInfo = this.getContentInfo(browserifySource);
-
-	if (this.bVerbose) {
-		console.log("Reading sourcemap...")
-	}
-
-	var browserifySourceMap = this.getFileSourceMap(browserifySource, file.path);
-
-	if (this.bVerbose) {
-		console.log("Creating file content...")
-	}
-
-	return this.createFileContent(browserifySource, fileContentInfo, browserifySourceMap, file);
-};
 
 
 BrowserifyUnpack.prototype.getFileSourceMap = function (fileContent, filePath) {
@@ -342,11 +376,11 @@ BrowserifyUnpack.prototype.createFileContent = function (browserifySource, fileC
  */
 BrowserifyUnpack.prototype.fillPath = function (maps, item, entryFilePath) {
 
-	if(item.row.path === undefined) {
+	if(item.row.path === undefined || item.row.entry == true  ) {
 		item.row.path = entryFilePath;
 		for(var dependencie in item.row.deps) {
-			var dirpath = path.dirname(entryFilePath) + '/';
-			var res = Module._findPath(dependencie, [dirpath, this.sourceDir]);
+			var dirpath = path.dirname(entryFilePath) ;
+			var res = Module._findPath(dependencie, [dirpath , this.sourceDir]);
 			if(res) {
 				this.fillPath(maps, maps[item.row.deps[dependencie]], res);
 			} else {
@@ -357,6 +391,9 @@ BrowserifyUnpack.prototype.fillPath = function (maps, item, entryFilePath) {
 					var res = Module._findPath(dependencie, Module._nodeModulePaths(dirpath));
 					if(res) {
 						this.fillPath(maps, maps[item.row.deps[dependencie]], res);
+					}else{
+				
+						this.fillPath(maps, maps[item.row.deps[dependencie]],  path.resolve(dirpath, dependencie));
 					}
 				}
 			}
@@ -367,40 +404,12 @@ BrowserifyUnpack.prototype.fillPath = function (maps, item, entryFilePath) {
 };
 
 
-/** Main function used to kick off the unpacking process.
- * @param {string} [browserifySource] an optional source code string to unpack,
- * if null, then the constructor's 'options.file' option is read from the filesystem and unpacked
- */
-BrowserifyUnpack.prototype.unpack = function (browserifySource) {
-
-	if (this.bVerbose) {
-		console.log("Reading file '" + this.filepath + "' src: " + (browserifySource != null ? (browserifySource.length + " length") : null) + "...");
-	}
-
-	if(browserifySource == undefined) {
-		browserifySource = fs.readFileSync(this.filepath, 'utf8');
-	}
-
-	var browserifyFiles = this.readSource(browserifySource, path.basename(this.filepath));
-
-	if (this.bVerbose) {
-		console.log("Reading source map...")
-	}
-
-	var browserifySourceMap = this.readSourceMap(browserifySource);
-
-	if (this.bVerbose) {
-		console.log("Saving files...")
-	}
-
-	return this.generateFiles(browserifyFiles, browserifySource, browserifySourceMap, this.output);
-};
 
 
 /** Read the source map from a minified JS file, supports embedded source map comments and source map URL comments.
  * If a source map URL is found, the map file path is assumed to be relative to the parent directory of the JS file
  */
-BrowserifyUnpack.prototype.readSourceMap = function (src) {
+BrowserifyUnpack.prototype.readSourceMap = function (src, sourceFiles) {
 
 	var files = [];
 	var loaderMap = [];
@@ -427,19 +436,39 @@ BrowserifyUnpack.prototype.readSourceMap = function (src) {
 			}
 			files[path].mappings.push(m);
 		}
-		else if (this.bVerbose) {
-			console.error("could not find source map file '" + m.source + "'");
+		else {
+		    if(files[m.source] == undefined) {
+				files[m.source] = {
+					mappings: [],
+					original: consumer.sourceContentFor(m.source, true)
+				};
+			}
+
+			files[m.source].mappings.push(m);
 		}
+			
 	}.bind(this), {}, consumer.GENERATED_ORDER);
 
+
+	var mappedFiles = [];
 	for(var i in files) {
-		files[i].start = files[i].mappings[0];
-		files[i].end = files[i].mappings.slice(-1)[0];
-		loaderMap[files[i].start.source] = files[i];
+		var file = {
+			start : files[i].mappings[0],
+			end : files[i].mappings.slice(-1)[0]
+		}
+		var name = i.replace('/source/','').replace('index.js','').replace(path.extname(i),'');		
+		for( var filePath in sourceFiles){
+			if(sourceFiles[filePath].path.indexOf(name) != -1 && mappedFiles[sourceFiles[filePath].path] == undefined){
+				mappedFiles[sourceFiles[filePath].path]= file;
+				loaderMap[sourceFiles[filePath].path] = file;
+			}
+
+		}
 	}
 
+
 	return {
-		files: files,
+		files: mappedFiles,
 		loader: loaderMap
 	};
 };
@@ -482,6 +511,8 @@ BrowserifyUnpack.prototype.generateFiles = function (files, originalSource, sour
 
 		if(this.withNode == false && file.node == true) return;
 
+		console.log(file)
+
 		var fileOutputPath = (!this.relativizeOutputPath ? file.src : (path.isAbsolute(file.src) ? path.relative(this.rootDir, file.src) : file.src));
 		var devFileUrl = baseUrl + fileOutputPath;
 		var devFilePath = toPath + '/' + baseUrl + fileOutputPath;
@@ -512,8 +543,15 @@ BrowserifyUnpack.prototype.generateFiles = function (files, originalSource, sour
 
 		var smf = sourceMapData.files[file.path];
 
-		if(smf == null && file.entry == true) {
-			console.error("cannot find sourceMapData for file '" + file.path + "', this file is the bundle's entry file" + (this.entryFile ? ", but the 'entryFile' option '" + this.entryFile + "' can't be found in the source map data" : " and no 'entryFile' option was provided, try providing an entry file name option") + "\n");
+		if(smf == undefined ){
+			console.error("cannot find sourceMapData for file '" + file.path + "'");
+			return;
+		}
+
+		if(smf == null  && file.entry == true) {
+		//	console.error("cannot find sourceMapData for file '" + file.path + "', this file is the bundle's entry file" + (this.entryFile ? ", but the 'entryFile' option '" + this.entryFile + "' can't be found in the source map data" : " and no 'entryFile' option was provided, try providing an entry file name option") + "\n");
+			return;
+
 		}
 
 		smf.file = file;
