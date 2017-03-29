@@ -2,7 +2,7 @@
 
 var yargs = require('yargs')
 		.usage('Usage: $0 -f <file> [options]')
-    .example('$0 -f foo.js', 'Cut a browserify bundle in multiple files')
+	.example('$0 -f foo.js', 'Cut a browserify bundle in multiple files')
 		.option('o', {
 			alias: 'output',
 			describe: 'Path to save the output ( map.json + files )'
@@ -20,10 +20,20 @@ var yargs = require('yargs')
 			alias: 'directory',
 			describe: 'Source files directory'
 		})
+		.option('e', {
+			alias: 'entry',
+			describe: 'Bundles entry file name'
+		})
 		.option('s', {
 			alias: 'sourcemap',
 			default: false,
 			describe: 'Add sourcemap to output files',
+			type: 'bool'
+		})
+		.option('relativize', {
+		    alias: 'relativizeoutputpath',
+			default: false,
+			describe: 'Relativize output file paths',
 			type: 'bool'
 		})
 		.option('m', {
@@ -43,7 +53,7 @@ var yargs = require('yargs')
 		})
 		.help('h')
 		.alias('h', 'help')
-    .epilog('copyright 2015');
+	.epilog('copyright 2015');
 
 var argv = yargs.argv;
 

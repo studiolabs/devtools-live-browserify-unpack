@@ -311,8 +311,6 @@ BrowserifyUnpack.prototype.createFileContent = function(
     file: "/" + file.url
   });
 
-  var lineDiff = browserifySourceMap.start.generatedLine - 1;
-
   for (var i in browserifySourceMap.mappings) {
     var mapping = browserifySourceMap.mappings[i];
 
@@ -320,7 +318,7 @@ BrowserifyUnpack.prototype.createFileContent = function(
       source: "/" + file.src,
       original: { line: mapping.originalLine, column: mapping.originalColumn },
       generated: {
-        line: mapping.generatedLine - lineDiff,
+        line: mapping.generatedLine,
         column: mapping.generatedColumn
       }
     });
@@ -457,6 +455,8 @@ BrowserifyUnpack.prototype.generateFiles = function(
     file: "/" + this.loaderUrl
   });
 
+  var lineDiff = 0;
+
   files.forEach(
     function(file) {
       loader += originalSource.slice(start, file.start);
@@ -498,7 +498,7 @@ BrowserifyUnpack.prototype.generateFiles = function(
           file: "/" + devFileUrl
         });
 
-        var lineDiff = smf.start.generatedLine - browserifyFunctionLines;
+        lineDiff += browserifyFunctionLines;
 
         for (var i in smf.mappings) {
           var mapping = smf.mappings[i];
@@ -510,7 +510,7 @@ BrowserifyUnpack.prototype.generateFiles = function(
               column: mapping.originalColumn
             },
             generated: {
-              line: mapping.generatedLine - lineDiff,
+              line: mapping.generatedLine + lineDiff,
               column: mapping.generatedColumn
             }
           });
@@ -520,7 +520,8 @@ BrowserifyUnpack.prototype.generateFiles = function(
         file.sourcemap = convertSourceMap.fromJSON(file.generator.toString());
         var inline = file.sourcemap.toComment();
       }
-      +this.write(
+
+      this.write(
         devFilePath,
         browserifyLine + "\n" + generatedCode + "\n" + "}" + "\n" + inline
       );
@@ -566,14 +567,18 @@ BrowserifyUnpack.prototype.generateFiles = function(
       }
     }
 
-    diff += smf.start.generatedLine - smf.end.generatedLine - smf.file.lines;
+    diff += smf.start.generatedLine +
+      smf.file.lines -
+      (smf.end.generatedLine + smf.file.lines);
 
     loaderGenerator.setSourceContent("/" + smf.file.src, smf.original);
   }
 
   var sourcemap = convertSourceMap.fromObject(loaderGenerator);
 
-  var loaderContent = loader + "\n" + sourcemap.toComment();
+  var loaderContent = convertSourceMap.removeComments(loader) +
+    "\n" +
+    sourcemap.toComment();
 
   this.write(toPath + "/" + this.loaderUrl, loaderContent);
 
