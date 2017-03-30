@@ -1,11 +1,11 @@
 {
-  "name": "browserify-unpack",
-  "version": "0.4.2",
-  "description": "Browserify unpack cut a browserify bundle in multiple files",
+  "name": "devtools-browserify-unpack",
+  "version": "0.4.3",
+  "description": "Browserify unpack cut a browserify bundle in multiple files for Devtools Live",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/StudioLabs/browserify-unpack"
+    "url": "https://github.com/StudioLabs/devtools-browserify-unpack"
   },
   "author": {
     "name": "StudioLabs"

@@ -212,6 +212,7 @@ BrowserifyUnpack.prototype.getFileSourceMap = function(fileContent, filePath) {
 
   consumer.eachMapping(
     function(m) {
+      if (m.source == null) return;
       var path = Module._findPath(m.source, [
         this.rootDir,
         this.sourceDir,
@@ -752,20 +753,24 @@ BrowserifyUnpack.prototype.createUpdateEvent = function(
   var browserifyVarName = "event___" +
     eventFileEvent.replace(/([\/|:\\|\\|\.|\-])/g, "_");
 
-  var script = "if(module.exports.prototype !== undefined){\n" +
-    "	if(module.exports.prototype.constructor !== undefined ){\n" +
-    "		var Module = module.exports; \n" +
+  var script = "var Module = module.exports; \n" +
+    "if(module.exports.default !== undefined){" +
+    "	Module = module.exports.default;" +
+    "} \n" +
     "		var " +
     browserifyVarName +
-    " =function(){\n" +
+    " = function(){\n" +
     "			this.liveEvent = '" +
     eventFileEvent +
     "';\n" +
     "			window.addEventListener(this.liveEvent,function(){\n" +
     "				if(this.onLiveChange !== undefined){\n" +
     "					this.onLiveChange().bind(this);\n" +
+    "				}else{ \n" +
+    "       var liveEvent = new Event('defaultOnLiveChange');\n" +
+    "       window.dispatchEvent(liveEvent);\n" +
     "				}\n" +
-    "			}.bind(this));\n";
+    "		}.bind(this));\n";
 
   for (var i in externals) {
     var externalEvent = String(externals[i])
@@ -773,7 +778,7 @@ BrowserifyUnpack.prototype.createUpdateEvent = function(
       .replace(this.rootDir, "");
 
     if (externalEvent.indexOf("node_modules") == -1) {
-      script += "			window.addEventListener('" +
+      script += "		window.addEventListener('" +
         externalEvent +
         "',function(){\n" +
         "				console.log('" +
@@ -782,28 +787,27 @@ BrowserifyUnpack.prototype.createUpdateEvent = function(
         "				if(this.onLiveExternalChange !== undefined){\n" +
         "					this.onLiveExternalChange().bind(this);\n" +
         "				}\n" +
-        "			}.bind(this));\n";
+        "		}.bind(this));\n";
     }
   }
 
-  script += "			return Module.apply(this,arguments);\n" +
-    "		};\n" +
+  script += "		return Module.apply(this,arguments);\n" +
+    "	};\n" +
     "		Object.assign(" +
     browserifyVarName +
     ", Module);\n" +
+    "if(Module.prototype !== undefined){\n" +
     "		" +
     browserifyVarName +
     ".prototype = Module.prototype;\n" +
-    "		" +
     browserifyVarName +
     ".prototype.constructor = " +
     browserifyVarName +
     ";\n" +
-    "		module.exports = " +
+    "		}\n" +
+    "		module.exports.default = " +
     browserifyVarName +
-    ";\n" +
-    "	}\n" +
-    "}";
+    ";\n";
 
   return script;
 };
