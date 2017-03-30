@@ -1,6 +1,6 @@
 {
   "name": "devtools-live-browserify-unpack",
-  "version": "0.4.3",
+  "version": "0.4.4",
   "description": "Browserify unpack cut a browserify bundle in multiple files for Devtools Live",
   "license": "MIT",
   "repository": {
