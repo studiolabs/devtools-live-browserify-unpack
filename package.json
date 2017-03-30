@@ -1,11 +1,11 @@
 {
-  "name": "devtools-browserify-unpack",
+  "name": "devtools-live-browserify-unpack",
   "version": "0.4.3",
   "description": "Browserify unpack cut a browserify bundle in multiple files for Devtools Live",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/StudioLabs/devtools-browserify-unpack"
+    "url": "https://github.com/StudioLabs/devtools-live-browserify-unpack"
   },
   "author": {
     "name": "StudioLabs"
