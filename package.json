@@ -40,9 +40,9 @@
     "browserifyunpack": "bin/browserifyunpack.js"
   },
   "bugs": {
-    "url": "https://github.com/StudioLabs/browserify-unpack/issues"
+    "url": "https://github.com/StudioLabs/devtools-live-browserify-unpack/issues"
   },
-  "homepage": "https://github.com/StudioLabs/browserify-unpack",
+  "homepage": "https://github.com/StudioLabs/devtools-live-browserify-unpack",
   "maintainers": [
     {
       "name": "Steed Monteiro",
